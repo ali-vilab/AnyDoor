@@ -1,1 +1,0 @@
-# /mnt/myworkspace/project/opt/ossutil64 --config-file /mnt/myworkspace/project/opt/.ossutilconfig cp -r /mnt/myworkspace/new_project/AnyDoor.ablation/AnyDoor oss://intern-data/xizhi/AnyDoor/opem/AnyDoor
