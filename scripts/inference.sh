@@ -1,0 +1,2 @@
+unset WORLD_SIZE
+python run_inference.py
