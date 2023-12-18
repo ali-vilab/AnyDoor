@@ -5,7 +5,7 @@ gradio==3.39.0
 numpy==1.23.1
 omegaconf==2.1.1
 open_clip_torch==2.17.1
-opencv_contrib_python==4.3.0.36
+opencv_contrib_python==4.6.0.66
 opencv_python==4.7.0.72
 opencv_python_headless==4.7.0.72
 Pillow==9.4.0
