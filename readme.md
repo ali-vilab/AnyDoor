@@ -57,7 +57,8 @@ pip install lvis
 ```
 ## Download Checkpoints
 Download AnyDoor checkpoint: 
-* URL: https://huggingface.co/spaces/xichenhku/AnyDoor/tree/main
+* ModelScope: https://modelscope.cn/models/damo/AnyDoor/files
+* HuggingFace: https://huggingface.co/spaces/xichenhku/AnyDoor/tree/main
 * We include all the optimizer params for Adam, so the checkpoint is big. You could only keep the "state_dict" to make it much smaller.
 
 
@@ -102,6 +103,9 @@ python run_gradio_demo.py
 ```
 The gradio demo would look like the UI shown below:
 
+* 📢 This version requires users to annotate the mask of the target object, too coarse mask would influence the generation quality. We plan to add mask refine module or interactive segmentation modules in the demo.
+
+
 <table align="center">
   <tr>
   <td>
@@ -132,6 +136,12 @@ sh ./scripts/convert_weight.sh
 ```bash
 sh ./scripts/train.sh  
 ```
+
+## 🔥 Community Contributions
+@bdsqlsz
+
+* AnyDoor for windows: https://github.com/sdbds/AnyDoor-for-windows
+* Pruned model: https://modelscope.cn/models/bdsqlsz/AnyDoor-Pruned/summary
 
 ## Acknowledgements
 This project is developped on the codebase of [ControlNet](https://github.com/lllyasviel/ControlNet). We  appreciate this great work! 
