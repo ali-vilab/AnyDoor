@@ -14,6 +14,7 @@ from cldm.ddim_hacked import DDIMSampler
 from omegaconf import OmegaConf
 from cldm.hack import disable_verbosity, enable_sliced_attention
 
+
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 
@@ -26,12 +27,19 @@ if save_memory:
 config = OmegaConf.load('./configs/demo.yaml')
 model_ckpt =  config.pretrained_model
 model_config = config.config_file
+use_interactive_seg = config.config_file
 
 model = create_model(model_config ).cpu()
 model.load_state_dict(load_state_dict(model_ckpt, location='cuda'))
 model = model.cuda()
 ddim_sampler = DDIMSampler(model)
 
+if use_interactive_seg:
+    from iseg.coarse_mask_refine_util import BaselineModel
+    model_path = './iseg/coarse_mask_refine.pth'
+    iseg_model = BaselineModel().eval()
+    weights = torch.load(model_path , map_location='cpu')['state_dict']
+    iseg_model.load_state_dict(weights, strict= True)
 
 def crop_back( pred, tar_image,  extra_sizes, tar_box_yyxx_crop):
     H1, W1, H2, W2 = extra_sizes
@@ -144,10 +152,10 @@ def process_pairs(ref_image, ref_mask, tar_image, tar_mask, max_ratio = 0.8):
 
     # ========= Target ===========
     tar_box_yyxx = get_bbox_from_mask(tar_mask)
-    tar_box_yyxx = expand_bbox(tar_mask, tar_box_yyxx, ratio=[1.1,1.2]) #1.1  1.3
+    tar_box_yyxx = expand_bbox(tar_mask, tar_box_yyxx, ratio=[1.0,1.1]) #1.1  1.2
     
     # crop
-    tar_box_yyxx_crop =  expand_bbox(tar_image, tar_box_yyxx, ratio=[1.3, 3.0])   
+    tar_box_yyxx_crop =  expand_bbox(tar_image, tar_box_yyxx, ratio=[1.3, 3.0])  #1.3-3
     tar_box_yyxx_crop = box2squre(tar_image, tar_box_yyxx_crop) # crop box
     y1,y2,x1,x2 = tar_box_yyxx_crop
 
@@ -199,6 +207,14 @@ ref_list.sort()
 image_list=[os.path.join(image_dir,file) for file in os.listdir(image_dir) if '.jpg' in file or '.png' in file or '.jpeg' in file]
 image_list.sort()
 
+
+def process_image_mask(image_np, mask_np):
+    img = torch.from_numpy(image_np.transpose((2, 0, 1)))
+    img_ten = img.float().div(255).unsqueeze(0)
+    mask_ten = torch.from_numpy(mask_np).float().unsqueeze(0).unsqueeze(0)
+    return img_ten, mask_ten
+
+
 def mask_image(image, mask):
     blanc = np.ones_like(image) * 255
     mask = np.stack([mask,mask,mask],-1) / 255
@@ -219,6 +235,11 @@ def run_local(base,
     ref_mask = np.asarray(ref_mask)
     ref_mask = np.where(ref_mask > 128, 1, 0).astype(np.uint8)
 
+    # refine the user annotated coarse mask
+    if use_interactive_seg:
+        img_ten, mask_ten = process_image_mask(ref_image, ref_mask)
+        ref_mask = iseg_model(img_ten, mask_ten)['instances'][0,0].detach().numpy() > 0.5
+
     processed_item = process_pairs(ref_image.copy(), ref_mask.copy(), image.copy(), mask.copy(), max_ratio = 0.8)
     masked_ref = (processed_item['ref']*255)
 
@@ -230,8 +251,6 @@ def run_local(base,
 
     masked_ref = cv2.resize(masked_ref.astype(np.uint8), (512,512))
     return [synthesis]
-
-
 
 with gr.Blocks() as demo:
     with gr.Column():
@@ -246,10 +265,6 @@ with gr.Blocks() as demo:
                 seed = gr.Slider(label="Seed", minimum=-1, maximum=999999999, step=1, value=-1)
                 gr.Markdown(" Higher guidance-scale makes higher fidelity, while lower guidance-scale leads to more harmonized blending.")
     
-
-
-
-
         gr.Markdown("# Upload / Select Images for the Background (left) and Reference Object (right)")
         gr.Markdown("### Your could draw coarse masks on the background to indicate the desired location and shape.")
         gr.Markdown("### <u>Do not forget</u> to annotate the target object on the reference image.")
