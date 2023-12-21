@@ -105,6 +105,7 @@ The gradio demo would look like the UI shown below:
 
 * 📢 This version requires users to annotate the mask of the target object, too coarse mask would influence the generation quality. We plan to add mask refine module or interactive segmentation modules in the demo.
 
+* 📢 We provide an segmentation module to refine the user annotated reference mask. We could chose to disable it by setting  `use_interactive_seg: False` in `/configs/demo.yaml`.
 
 <table align="center">
   <tr>
