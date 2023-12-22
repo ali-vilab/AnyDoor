@@ -33,7 +33,7 @@
 * **[2023.12.17]** Release train & inference & demo code, and pretrained checkpoint.
 * **[Soon]** Release the new version paper.
 * **[Soon]** Support online demo.
-* **[On-going]** Scale-up the training data and release stronger models as the foundaition model for downstream region-to-region generation tasks.
+* **[On-going]** Scale-up the training data and release stronger models as the foundation model for downstream region-to-region generation tasks.
 * **[On-going]** Release specific-designed models for downstream tasks like virtual tryon, face swap, text and logo transfer, etc.
 
 
