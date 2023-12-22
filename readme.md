@@ -57,9 +57,10 @@ pip install lvis
 ```
 ## Download Checkpoints
 Download AnyDoor checkpoint: 
-* ModelScope: https://modelscope.cn/models/damo/AnyDoor/files
-* HuggingFace: https://huggingface.co/spaces/xichenhku/AnyDoor/tree/main
-* We include all the optimizer params for Adam, so the checkpoint is big. You could only keep the "state_dict" to make it much smaller.
+* [ModelScope](https://modelscope.cn/models/damo/AnyDoor/files)
+* [HuggingFace](https://huggingface.co/spaces/xichenhku/AnyDoor/tree/main)
+
+**Note:** We include all the optimizer params for Adam, so the checkpoint is big. You could only keep the "state_dict" to make it much smaller.
 
 
 Download DINOv2 checkpoint and revise `/configs/anydoor.yaml` for the path (line 83)
