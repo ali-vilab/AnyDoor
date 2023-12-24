@@ -17,6 +17,7 @@
     <br>
         <a href="https://arxiv.org/abs/2307.09481"><img src='https://img.shields.io/badge/arXiv-AnyDoor-red' alt='Paper PDF'></a>
         <a href='https://damo-vilab.github.io/AnyDoor-Page/'><img src='https://img.shields.io/badge/Project_Page-AnyDoor-green' alt='Project Page'></a>
+        <a href='https://huggingface.co/spaces/xichenhku/AnyDoor-online'><img src='https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue'></a>
     <br>
     <b>The University of Hong Kong &nbsp; | &nbsp;  Alibaba Group  | &nbsp;  Ant Group </b>
   </p>
@@ -31,8 +32,8 @@
 
 ## News
 * **[2023.12.17]** Release train & inference & demo code, and pretrained checkpoint.
+* **[2023.12.24]** 🔥 Support online demo [HuggingFace](https://huggingface.co/spaces/xichenhku/AnyDoor-online).
 * **[Soon]** Release the new version paper.
-* **[Soon]** Support online demo.
 * **[On-going]** Scale-up the training data and release stronger models as the foundaition model for downstream region-to-region generation tasks.
 * **[On-going]** Release specific-designed models for downstream tasks like virtual tryon, face swap, text and logo transfer, etc.
 

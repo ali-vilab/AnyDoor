@@ -41,6 +41,7 @@ if use_interactive_seg:
     weights = torch.load(model_path , map_location='cpu')['state_dict']
     iseg_model.load_state_dict(weights, strict= True)
 
+
 def crop_back( pred, tar_image,  extra_sizes, tar_box_yyxx_crop):
     H1, W1, H2, W2 = extra_sizes
     y1,y2,x1,x2 = tar_box_yyxx_crop    
@@ -67,13 +68,14 @@ def inference_single_image(ref_image,
                            ref_mask, 
                            tar_image, 
                            tar_mask, 
-                           num_samples, 
                            strength, 
                            ddim_steps, 
                            scale, 
-                           seed, 
+                           seed,
+                           enable_shape_control 
                            ):
-    item = process_pairs(ref_image, ref_mask, tar_image, tar_mask)
+    raw_background = tar_image.copy()
+    item = process_pairs(ref_image, ref_mask, tar_image, tar_mask, enable_shape_control = enable_shape_control)
 
     ref = item['ref']
     hint = item['hint']
@@ -118,9 +120,14 @@ def inference_single_image(ref_image,
     sizes = item['extra_sizes']
     tar_box_yyxx_crop = item['tar_box_yyxx_crop'] 
     tar_image = crop_back(pred, tar_image, sizes, tar_box_yyxx_crop) 
-    return tar_image
 
-def process_pairs(ref_image, ref_mask, tar_image, tar_mask, max_ratio = 0.8):
+    # keep background unchanged
+    y1,y2,x1,x2 = item['tar_box_yyxx']
+    raw_background[y1:y2, x1:x2, :] = tar_image[y1:y2, x1:x2, :]
+    return raw_background
+
+
+def process_pairs(ref_image, ref_mask, tar_image, tar_mask, max_ratio = 0.8, enable_shape_control = False):
     # ========= Reference ===========
     # ref expand 
     ref_box_yyxx = get_bbox_from_mask(ref_mask)
@@ -152,10 +159,11 @@ def process_pairs(ref_image, ref_mask, tar_image, tar_mask, max_ratio = 0.8):
 
     # ========= Target ===========
     tar_box_yyxx = get_bbox_from_mask(tar_mask)
-    tar_box_yyxx = expand_bbox(tar_mask, tar_box_yyxx, ratio=[1.0,1.1]) #1.1  1.2
+    tar_box_yyxx = expand_bbox(tar_mask, tar_box_yyxx, ratio=[1.1,1.2]) #1.1  1.3
+    tar_box_yyxx_full = tar_box_yyxx
     
     # crop
-    tar_box_yyxx_crop =  expand_bbox(tar_image, tar_box_yyxx, ratio=[1.3, 3.0])  #1.3-3
+    tar_box_yyxx_crop =  expand_bbox(tar_image, tar_box_yyxx, ratio=[1.3, 3.0])   
     tar_box_yyxx_crop = box2squre(tar_image, tar_box_yyxx_crop) # crop box
     y1,y2,x1,x2 = tar_box_yyxx_crop
 
@@ -175,28 +183,34 @@ def process_pairs(ref_image, ref_mask, tar_image, tar_mask, max_ratio = 0.8):
 
     collage_mask = cropped_target_image.copy() * 0.0
     collage_mask[y1:y2,x1:x2,:] = 1.0
-    collage_mask = np.stack([cropped_tar_mask,cropped_tar_mask,cropped_tar_mask],-1)
+    if enable_shape_control:
+        collage_mask = np.stack([cropped_tar_mask,cropped_tar_mask,cropped_tar_mask],-1)
 
     # the size before pad
     H1, W1 = collage.shape[0], collage.shape[1]
 
     cropped_target_image = pad_to_square(cropped_target_image, pad_value = 0, random = False).astype(np.uint8)
     collage = pad_to_square(collage, pad_value = 0, random = False).astype(np.uint8)
-    collage_mask = pad_to_square(collage_mask, pad_value = 0, random = False).astype(np.uint8)
+    collage_mask = pad_to_square(collage_mask, pad_value = 2, random = False).astype(np.uint8)
 
     # the size after pad
     H2, W2 = collage.shape[0], collage.shape[1]
 
     cropped_target_image = cv2.resize(cropped_target_image.astype(np.uint8), (512,512)).astype(np.float32)
     collage = cv2.resize(collage.astype(np.uint8), (512,512)).astype(np.float32)
-    collage_mask  = (cv2.resize(collage_mask.astype(np.uint8), (512,512)).astype(np.float32) > 0.5).astype(np.float32)
+    collage_mask  = cv2.resize(collage_mask.astype(np.uint8), (512,512),  interpolation = cv2.INTER_NEAREST).astype(np.float32)
+    collage_mask[collage_mask == 2] = -1
 
     masked_ref_image = masked_ref_image  / 255 
     cropped_target_image = cropped_target_image / 127.5 - 1.0
     collage = collage / 127.5 - 1.0 
     collage = np.concatenate([collage, collage_mask[:,:,:1]  ] , -1)
     
-    item = dict(ref=masked_ref_image.copy(), jpg=cropped_target_image.copy(), hint=collage.copy(), extra_sizes=np.array([H1, W1, H2, W2]), tar_box_yyxx_crop=np.array( tar_box_yyxx_crop ) ) 
+    item = dict(ref=masked_ref_image.copy(), jpg=cropped_target_image.copy(), hint=collage.copy(), 
+                extra_sizes=np.array([H1, W1, H2, W2]), 
+                tar_box_yyxx_crop=np.array( tar_box_yyxx_crop ),
+                tar_box_yyxx=np.array(tar_box_yyxx_full),
+                 ) 
     return item
 
 
@@ -206,14 +220,6 @@ ref_list=[os.path.join(ref_dir,file) for file in os.listdir(ref_dir) if '.jpg' i
 ref_list.sort()
 image_list=[os.path.join(image_dir,file) for file in os.listdir(image_dir) if '.jpg' in file or '.png' in file or '.jpeg' in file]
 image_list.sort()
-
-
-def process_image_mask(image_np, mask_np):
-    img = torch.from_numpy(image_np.transpose((2, 0, 1)))
-    img_ten = img.float().div(255).unsqueeze(0)
-    mask_ten = torch.from_numpy(mask_np).float().unsqueeze(0).unsqueeze(0)
-    return img_ten, mask_ten
-
 
 def mask_image(image, mask):
     blanc = np.ones_like(image) * 255
@@ -230,27 +236,17 @@ def run_local(base,
     ref_mask = ref["mask"].convert("L")
     image = np.asarray(image)
     mask = np.asarray(mask)
-    mask = np.where(mask > 128, 255, 0).astype(np.uint8)
+    mask = np.where(mask > 128, 1, 0).astype(np.uint8)
     ref_image = np.asarray(ref_image)
     ref_mask = np.asarray(ref_mask)
     ref_mask = np.where(ref_mask > 128, 1, 0).astype(np.uint8)
 
-    # refine the user annotated coarse mask
-    if use_interactive_seg:
-        img_ten, mask_ten = process_image_mask(ref_image, ref_mask)
-        ref_mask = iseg_model(img_ten, mask_ten)['instances'][0,0].detach().numpy() > 0.5
-
-    processed_item = process_pairs(ref_image.copy(), ref_mask.copy(), image.copy(), mask.copy(), max_ratio = 0.8)
-    masked_ref = (processed_item['ref']*255)
-
-    mased_image = mask_image(image, mask)
-    #synthesis = image
     synthesis = inference_single_image(ref_image.copy(), ref_mask.copy(), image.copy(), mask.copy(), *args)
     synthesis = torch.from_numpy(synthesis).permute(2, 0, 1)
     synthesis = synthesis.permute(1, 2, 0).numpy()
-
-    masked_ref = cv2.resize(masked_ref.astype(np.uint8), (512,512))
     return [synthesis]
+
+
 
 with gr.Blocks() as demo:
     with gr.Column():
@@ -258,11 +254,12 @@ with gr.Blocks() as demo:
         with gr.Row():
             baseline_gallery = gr.Gallery(label='Output', show_label=True, elem_id="gallery", columns=1, height=768)
             with gr.Accordion("Advanced Option", open=True):
-                num_samples = gr.Slider(label="Images", minimum=1, maximum=12, value=1, step=1)
+                num_samples = 1
                 strength = gr.Slider(label="Control Strength", minimum=0.0, maximum=2.0, value=1.0, step=0.01)
                 ddim_steps = gr.Slider(label="Steps", minimum=1, maximum=100, value=30, step=1)
-                scale = gr.Slider(label="Guidance Scale", minimum=0.1, maximum=30.0, value=3.0, step=0.1)
+                scale = gr.Slider(label="Guidance Scale", minimum=0.1, maximum=30.0, value=4.5, step=0.1)
                 seed = gr.Slider(label="Seed", minimum=-1, maximum=999999999, step=1, value=-1)
+                enable_shape_control = gr.Checkbox(label='Enable Shape Control', value=False)
                 gr.Markdown(" Higher guidance-scale makes higher fidelity, while lower guidance-scale leads to more harmonized blending.")
     
         gr.Markdown("# Upload / Select Images for the Background (left) and Reference Object (right)")
@@ -282,11 +279,11 @@ with gr.Blocks() as demo:
     run_local_button.click(fn=run_local, 
                            inputs=[base, 
                                    ref, 
-                                   num_samples, 
                                    strength, 
                                    ddim_steps, 
                                    scale, 
-                                   seed, 
+                                   seed,
+                                   enable_shape_control, 
                                    ], 
                            outputs=[baseline_gallery]
                         )
