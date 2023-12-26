@@ -42,6 +42,13 @@ if use_interactive_seg:
     iseg_model.load_state_dict(weights, strict= True)
 
 
+def process_image_mask(image_np, mask_np):
+    img = torch.from_numpy(image_np.transpose((2, 0, 1)))
+    img = img.float().div(255).unsqueeze(0)
+    mask = torch.from_numpy(mask_np).float().unsqueeze(0).unsqueeze(0)
+    pred = iseg_model(img, mask)['instances'][0,0].detach().numpy() > 0.5 
+    return pred.astype(np.uint8)
+
 def crop_back( pred, tar_image,  extra_sizes, tar_box_yyxx_crop):
     H1, W1, H2, W2 = extra_sizes
     y1,y2,x1,x2 = tar_box_yyxx_crop    
@@ -63,7 +70,6 @@ def crop_back( pred, tar_image,  extra_sizes, tar_box_yyxx_crop):
     tar_image[y1+m :y2-m, x1+m:x2-m, :] =  pred[m:-m, m:-m]
     return tar_image
 
-
 def inference_single_image(ref_image, 
                            ref_mask, 
                            tar_image, 
@@ -72,7 +78,7 @@ def inference_single_image(ref_image,
                            ddim_steps, 
                            scale, 
                            seed,
-                           enable_shape_control 
+                           enable_shape_control,
                            ):
     raw_background = tar_image.copy()
     item = process_pairs(ref_image, ref_mask, tar_image, tar_mask, enable_shape_control = enable_shape_control)
@@ -241,6 +247,15 @@ def run_local(base,
     ref_mask = np.asarray(ref_mask)
     ref_mask = np.where(ref_mask > 128, 1, 0).astype(np.uint8)
 
+    if ref_mask.sum() == 0:
+        raise gr.Error('No mask for the reference image.')
+
+    if mask.sum() == 0:
+        raise gr.Error('No mask for the background image.')
+
+    if reference_mask_refine:
+        ref_mask = process_image_mask(ref_image, ref_mask)
+
     synthesis = inference_single_image(ref_image.copy(), ref_mask.copy(), image.copy(), mask.copy(), *args)
     synthesis = torch.from_numpy(synthesis).permute(2, 0, 1)
     synthesis = synthesis.permute(1, 2, 0).numpy()
@@ -259,11 +274,19 @@ with gr.Blocks() as demo:
                 ddim_steps = gr.Slider(label="Steps", minimum=1, maximum=100, value=30, step=1)
                 scale = gr.Slider(label="Guidance Scale", minimum=0.1, maximum=30.0, value=4.5, step=0.1)
                 seed = gr.Slider(label="Seed", minimum=-1, maximum=999999999, step=1, value=-1)
-                enable_shape_control = gr.Checkbox(label='Enable Shape Control', value=False)
-                gr.Markdown(" Higher guidance-scale makes higher fidelity, while lower guidance-scale leads to more harmonized blending.")
+                reference_mask_refine = gr.Checkbox(label='Reference Mask Refine', value=True, interactive = True)
+                enable_shape_control = gr.Checkbox(label='Enable Shape Control', value=False, interactive = True)
+                
+                gr.Markdown("### Guidelines")
+                gr.Markdown(" Higher guidance-scale makes higher fidelity, while lower one makes more harmonized blending.")
+                gr.Markdown(" Users should annotate the mask of the target object, too coarse mask would lead to bad generation.\
+                              Reference Mask Refine provides a segmentation model to refine the coarse mask. ")
+                gr.Markdown(" Enable shape control means the generation results would consider user-drawn masks to control the shape & pose; otherwise it \
+                              considers the location and size to adjust automatically.")
+
     
         gr.Markdown("# Upload / Select Images for the Background (left) and Reference Object (right)")
-        gr.Markdown("### Your could draw coarse masks on the background to indicate the desired location and shape.")
+        gr.Markdown("### You could draw coarse masks on the background to indicate the desired location and shape.")
         gr.Markdown("### <u>Do not forget</u> to annotate the target object on the reference image.")
         with gr.Row():
             base = gr.Image(label="Background", source="upload", tool="sketch", type="pil", height=512, brush_color='#FFFFFF', mask_opacity=0.5)
