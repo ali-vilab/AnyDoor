@@ -28,7 +28,7 @@ Train:
     anno: path/MOSE/train/Annotations/
 
   MVImageNet:
-    txt: ./datasets/Preprocess/mvimagenet.txt
+    txt: ./anydoor_datasets/Preprocess/mvimagenet.txt
     image_dir: /mnt/workspace/xizhi/data/MVImgNet/
 
   VitonHD:

@@ -123,8 +123,8 @@ The gradio demo would look like the UI shown below:
 
 ### Prepare datasets
 * Download the datasets that present in `/configs/datasets.yaml` and modify the corresponding paths.
-* You could prepare you own datasets according to the formates of files in `./datasets`.
-* If you use UVO dataset, you need to process the json following `./datasets/Preprocess/uvo_process.py`
+* You could prepare you own datasets according to the formates of files in `./anydoor_datasets`.
+* If you use UVO dataset, you need to process the json following `./anydoor_datasets/Preprocess/uvo_process.py`
 * You could refer to `run_dataset_debug.py` to verify you data is correct.
 
 
