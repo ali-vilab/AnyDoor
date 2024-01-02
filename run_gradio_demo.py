@@ -274,7 +274,7 @@ with gr.Blocks() as demo:
                 ddim_steps = gr.Slider(label="Steps", minimum=1, maximum=100, value=30, step=1)
                 scale = gr.Slider(label="Guidance Scale", minimum=0.1, maximum=30.0, value=4.5, step=0.1)
                 seed = gr.Slider(label="Seed", minimum=-1, maximum=999999999, step=1, value=-1)
-                reference_mask_refine = gr.Checkbox(label='Reference Mask Refine', value=True, interactive = True)
+                reference_mask_refine = gr.Checkbox(label='Reference Mask Refine', value=False, interactive = True)
                 enable_shape_control = gr.Checkbox(label='Enable Shape Control', value=False, interactive = True)
                 
                 gr.Markdown("### Guidelines")
