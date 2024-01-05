@@ -229,7 +229,7 @@ class Predictor(BasePredictor):
         bg_image_path: Path = Input(description="Target Image"),
         bg_mask_path: Path = Input(description="Target Image mask"),
         control_strength: float = Input(description="Control Strength", default=1.0, ge=0.0, le=2.0),
-        steps: int = Input(description="Steps", default=30, ge=1, le=100),
+        steps: int = Input(description="Steps", default=50, ge=1, le=100),
         guidance_scale: float = Input(description="Guidance Scale", default=4.5, ge=0.1, le=30.0),
         enable_shape_control: bool = Input(description="Enable Shape Control", default=False),
         seed: int = Input(description="Random seed. Leave blank to randomize the seed", default=None),
@@ -241,8 +241,11 @@ class Predictor(BasePredictor):
 
         save_path = "/tmp/output.png"
         image = cv2.imread(str(reference_image_path), cv2.IMREAD_UNCHANGED)
-        image = image[:,:,:-1]
-        ref_image = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2RGB)
+        if image.shape[2] == 1:
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        elif image.shape[2] == 4:
+            image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+        ref_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         ref_mask = (cv2.imread(str(reference_image_mask))[:,:,-1] > 128).astype(np.uint8)
 
         # background image
