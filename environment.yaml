@@ -100,7 +100,7 @@ dependencies:
     - oauthlib==3.2.2
     - omegaconf==2.1.1
     - open-clip-torch==2.17.1
-    - opencv-contrib-python==4.3.0.36
+    - opencv-contrib-python==4.6.0.66
     - opencv-python==4.7.0.72
     - opencv-python-headless==4.7.0.72
     - orjson==3.9.10
