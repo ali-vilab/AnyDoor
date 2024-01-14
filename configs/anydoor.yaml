@@ -80,6 +80,6 @@ model:
 
     cond_stage_config:
       target: ldm.modules.encoders.modules.FrozenDinoV2Encoder
-      weight: path/dinov2_vitg14_pretrain.pth
+      weight: /content/drive/MyDrive/weights/dinov2_vitg14_pretrain.pth
     
 
